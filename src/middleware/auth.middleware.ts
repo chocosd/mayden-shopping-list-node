@@ -21,13 +21,12 @@ export async function authMiddleware(
 
   const secret = process.env.JWT_SECRET as string;
 
-  // Check for token in Authorization header or cookies
   let token = null;
 
   if (request.headers.authorization) {
     const authHeader = request.headers.authorization;
     if (authHeader.startsWith("Bearer ")) {
-      token = authHeader.substring(7).replace(/"/g, ""); // Remove quotes if present
+      token = authHeader.substring(7).replace(/"/g, "");
     }
   } else if (request.cookies && request.cookies.Authorization) {
     token = request.cookies.Authorization;
@@ -38,7 +37,8 @@ export async function authMiddleware(
   }
 
   try {
-    const { userId } = verify(token, secret) as TokenData;
+    const decoded = pkg.verify(token, secret) as TokenData | undefined;
+    const userId = decoded?.userId;
 
     const foundUser = await UserModel.findById(userId);
 

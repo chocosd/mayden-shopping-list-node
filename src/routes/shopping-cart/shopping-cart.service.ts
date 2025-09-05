@@ -9,7 +9,7 @@ export class ShoppingCartService {
 
   private normalizeItems(items: ShoppingItem[]): ShoppingItem[] {
     return (items || []).map((item, index) => {
-      const parsedOrder = Number((item as any).order);
+      const parsedOrder = Number(item.order);
       const safeOrder = Number.isFinite(parsedOrder) ? parsedOrder : index;
       return {
         ...item,
@@ -34,6 +34,7 @@ export class ShoppingCartService {
       const created = await ShoppingCartModel.create({ userId });
       return created.toJSON();
     }
+
     const current = existing.toJSON() as ShoppingCart;
     const normalized = this.normalizeItems(current.items || []);
     const total = this.computeTotal(normalized);
@@ -166,5 +167,40 @@ export class ShoppingCartService {
       { new: true }
     );
     return this.recomputeAndReturn(userId);
+  }
+
+  public async updateCartMeta(
+    userId: string,
+    meta: Partial<Pick<ShoppingCart, "title" | "spendLimit">>
+  ): Promise<ShoppingCart> {
+    const existing = await ShoppingCartModel.findOne({ userId });
+
+    const setFields: Record<string, unknown> = {};
+    if (typeof meta.title === "string") {
+      setFields.title = meta.title;
+    }
+    const parsedLimit = meta.spendLimit as unknown as
+      | number
+      | string
+      | undefined;
+    const spendLimitNumber =
+      parsedLimit !== undefined ? Number(parsedLimit) : undefined;
+    if (spendLimitNumber !== undefined && Number.isFinite(spendLimitNumber)) {
+      setFields.spendLimit = this.roundToTwoDecimals(spendLimitNumber);
+    }
+
+    // Normalize and compute total from current items
+    const items = existing
+      ? (existing.toJSON() as ShoppingCart).items || []
+      : [];
+    const normalized = this.normalizeItems(items);
+    const total = this.computeTotal(normalized);
+
+    const updated = await ShoppingCartModel.findOneAndUpdate(
+      { userId },
+      { $set: { ...setFields, items: normalized, total } },
+      { new: true, upsert: true }
+    );
+    return updated!.toJSON();
   }
 }

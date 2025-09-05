@@ -19,6 +19,12 @@ export class ShoppingCartController extends ControllerImpl {
       authMiddleware,
       this.reorderShoppingItems
     );
+    // Register cart meta route BEFORE dynamic :id route to avoid matching 'cart' as an id
+    this.router.patch(
+      `${this.path}/cart`,
+      authMiddleware,
+      this.updateShoppingCartMeta
+    );
     this.router.patch(
       `${this.path}/:id`,
       authMiddleware,
@@ -93,7 +99,7 @@ export class ShoppingCartController extends ControllerImpl {
       userId,
       req.body as ShoppingItem[]
     );
-    res.json(cart);
+    res.json(cart.items);
   };
 
   public removeShoppingItem = async (
@@ -114,6 +120,19 @@ export class ShoppingCartController extends ControllerImpl {
     const idsParam = (req.params as { ids: string }).ids;
     const ids = idsParam.split(",");
     const cart = await this.service.removeItems(userId, ids);
+    res.json(cart);
+  };
+
+  public updateShoppingCartMeta = async (
+    req: RequestWithUser,
+    res: Response
+  ): Promise<void> => {
+    const userId = req.user!.userId;
+    const cart = await this.service.updateCartMeta(
+      userId,
+      req.body as { title?: string; spendLimit?: number }
+    );
+
     res.json(cart);
   };
 }

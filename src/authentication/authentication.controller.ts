@@ -67,16 +67,12 @@ export class AuthenticationController extends ControllerImpl {
 
       const user = await this.authenticationService.findUserByEmail(email);
 
-      console.log("user", user);
-
       if (!user) {
         next(new WrongCredentials());
         return;
       }
 
       const isPasswordMatching = await bcrypt.compare(password, user.password);
-
-      console.log("isPasswordMatching", isPasswordMatching);
 
       if (!isPasswordMatching) {
         next(new WrongCredentials());
@@ -101,9 +97,7 @@ export class AuthenticationController extends ControllerImpl {
     next: NextFunction
   ): Promise<void> => {
     try {
-      const authHeader = (request.headers as any)["authorization"] as
-        | string
-        | undefined;
+      const authHeader = request.headers["authorization"] as string | undefined;
       const token = authHeader && authHeader.split(" ")[1];
 
       if (!token) {

@@ -4,12 +4,14 @@ import request from "supertest";
 
 import { AuthenticationController } from "../src/authentication/authentication.controller.ts";
 import { AuthenticationService } from "../src/authentication/authentication.service.ts";
-
-jest.mock("../src/authentication/authentication.service.ts");
+jest.mock("bcrypt", () => ({
+  genSalt: jest.fn(),
+  hash: jest.fn(),
+  compare: jest.fn(),
+}));
 
 describe("AuthenticationController", () => {
-  const app = express();
-  app.use(express.json());
+  let app: express.Express;
 
   let controller: AuthenticationController;
   let mockService: jest.Mocked<AuthenticationService>;
@@ -17,17 +19,29 @@ describe("AuthenticationController", () => {
   beforeEach(() => {
     jest.resetAllMocks();
     process.env.JWT_SECRET = "test-secret";
+    app = express();
+    app.use(express.json());
     controller = new AuthenticationController();
-    mockService =
-      new (AuthenticationService as unknown as jest.Mock<AuthenticationService>)() as jest.Mocked<AuthenticationService>;
-    // replace service instance on controller
+    // Manually mock the AuthenticationService methods used by controller
+    mockService = {
+      createUser: jest.fn(),
+      createToken: jest.fn(),
+      createCookie: jest.fn(),
+      findUserByEmail: jest.fn(),
+      expiresIn: "30d",
+      user: undefined as any,
+    } as unknown as jest.Mocked<AuthenticationService>;
     (controller as any).authenticationService = mockService;
     app.use("/", controller.router);
   });
 
   it("register creates user and sets cookie", async () => {
-    jest.spyOn(bcrypt, "genSalt").mockResolvedValue("salt" as any);
-    jest.spyOn(bcrypt, "hash").mockResolvedValue("hashed" as any);
+    (bcrypt.genSalt as unknown as jest.Mock).mockResolvedValueOnce(
+      "salt" as any
+    );
+    (bcrypt.hash as unknown as jest.Mock).mockResolvedValueOnce(
+      "hashed" as any
+    );
     mockService.createUser.mockResolvedValue({ _id: "1", userId: "u1" } as any);
     mockService.createToken.mockReturnValue({ token: "t", expiresIn: "30d" });
     mockService.createCookie.mockReturnValue(
@@ -45,8 +59,8 @@ describe("AuthenticationController", () => {
   });
 
   it("login returns token when credentials valid", async () => {
-    jest.spyOn(bcrypt, "compare").mockResolvedValue(true as any);
-    mockService.findUserByEmail.mockResolvedValue({
+    (bcrypt.compare as unknown as jest.Mock).mockResolvedValueOnce(true);
+    (mockService.findUserByEmail as jest.Mock).mockResolvedValue({
       _id: "1",
       password: "hashed",
     } as any);

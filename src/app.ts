@@ -50,8 +50,6 @@ export class App {
   private connectToDatabase(): void {
     const mongoUri = process.env.MONGO_URI;
 
-    console.log("mongoUri", mongoUri);
-
     if (!mongoUri) {
       throw new Error("MONGO_URI is not defined");
     }
